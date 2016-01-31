@@ -68,6 +68,12 @@ func (l *Lexer) Get() (Node, error) {
 			panic("unexpected nil")
 		}
 		return leaf, nil
+	case '\n':
+		leaf := l.consumeString("\n", NewLine)
+		if leaf == nil {
+			panic("unexpected nil")
+		}
+		return leaf, nil
 	case '>':
 		leaf := l.consumeString(">|", Operator)
 		if leaf != nil {
@@ -83,7 +89,7 @@ func (l *Lexer) Get() (Node, error) {
 		}, nil
 	}
 
-	leaf := l.consumeUntil([]byte("|> "), Word)
+	leaf := l.consumeUntil([]byte(" \t\n>|"), Word)
 	if leaf != nil {
 		return leaf, nil
 	}

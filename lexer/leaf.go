@@ -11,6 +11,7 @@ const (
 	Word
 	Operator
 	Space
+	NewLine
 )
 
 // Leaf is a basic node type. Represents a piece of the input data.
