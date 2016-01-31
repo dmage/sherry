@@ -8,23 +8,35 @@ type Lexer struct {
 	consumed int
 }
 
-func (l *Lexer) consumeLengthFunc(f func(c byte) bool) int {
+func (l *Lexer) consumeString(s string, kind Kind) *Leaf {
+	if l.consumed+len(s) > len(l.Input) {
+		return nil
+	}
+	data := l.Input[l.consumed : l.consumed+len(s)]
+	if string(data) != s {
+		return nil
+	}
+	leaf := &Leaf{
+		Kind: kind,
+		Data: data,
+		pos:  Pos(l.consumed),
+	}
+	l.consumed += len(data)
+	return leaf
+}
+
+func (l *Lexer) consumeFunc(f func(c byte) bool, kind Kind) *Leaf {
 	buf := l.Input[l.consumed:]
 	i := 0
 	for i < len(buf) && f(buf[i]) {
 		i++
 	}
-	return i
-}
-
-func (l *Lexer) consumeFunc(f func(c byte) bool, kind Kind) *Leaf {
-	i := l.consumeLengthFunc(f)
 	if i == 0 {
 		return nil
 	}
 	leaf := &Leaf{
 		Kind: kind,
-		Data: l.Input[l.consumed : l.consumed+i],
+		Data: buf[0:i],
 		pos:  Pos(l.consumed),
 	}
 	l.consumed += i
@@ -43,23 +55,6 @@ func (l *Lexer) consumeUntil(b []byte, kind Kind) *Leaf {
 	}, kind)
 }
 
-func (l *Lexer) consume(s string, kind Kind) *Leaf {
-	if l.consumed+len(s) > len(l.Input) {
-		return nil
-	}
-	data := l.Input[l.consumed : l.consumed+len(s)]
-	if string(data) != s {
-		return nil
-	}
-	leaf := &Leaf{
-		Kind: kind,
-		Data: data,
-		pos:  Pos(l.consumed),
-	}
-	l.consumed += len(data)
-	return leaf
-}
-
 // Get returns Node from unconsumed Input.
 func (l *Lexer) Get() (Node, error) {
 	if l.consumed >= len(l.Input) {
@@ -74,7 +69,7 @@ func (l *Lexer) Get() (Node, error) {
 		}
 		return leaf, nil
 	case '>':
-		leaf := l.consume(">|", Operator)
+		leaf := l.consumeString(">|", Operator)
 		if leaf != nil {
 			return leaf, nil
 		}
