@@ -8,7 +8,7 @@ import (
 
 func main() {
 	l := lexer.Lexer{
-		Input: []byte("echo|>2 cat"),
+		Input: []byte("echo $foo|>2 cat"),
 	}
 	for {
 		p, err := l.Get()

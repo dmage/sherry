@@ -2,6 +2,8 @@ package lexer
 
 import "fmt"
 
+//go:generate stringer -type=Kind
+
 // Kind allows to distinguish between different types of leaves.
 type Kind int
 
@@ -32,5 +34,5 @@ func (l Leaf) MarshalText() (text []byte, err error) {
 }
 
 func (l Leaf) String() string {
-	return fmt.Sprintf("{Kind:%d Data:%q pos:%d}", l.Kind, l.Data, l.pos)
+	return fmt.Sprintf("{pos:%-6d Kind:%-10v Data:%q}", l.pos, l.Kind, l.Data)
 }
