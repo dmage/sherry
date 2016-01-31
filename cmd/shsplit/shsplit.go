@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"io/ioutil"
 	"log"
 	"os"
@@ -9,16 +10,20 @@ import (
 	"github.com/dmage/sherry/lexer"
 )
 
+var kind = flag.Bool("kind", false, "prefix lexemes by the kind")
+
 func main() {
+	flag.Parse()
+
 	input := os.Stdin
-	if len(os.Args) == 2 {
-		s, err := os.Open(os.Args[1])
+	if len(flag.Args()) == 1 {
+		s, err := os.Open(flag.Arg(0))
 		if err != nil {
 			log.Fatal(err)
 		}
 		defer input.Close()
 		input = s
-	} else if len(os.Args) != 1 {
+	} else if len(flag.Args()) != 0 {
 		log.Fatalf("Usage: %s [<filename>]", os.Args[0])
 	}
 
@@ -43,7 +48,15 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		output = append(output, string(text))
+		if *kind {
+			if leaf, ok := p.(*lexer.Leaf); ok {
+				output = append(output, leaf.Kind.String()+":"+string(text))
+			} else {
+				output = append(output, "!Leaf:"+string(text))
+			}
+		} else {
+			output = append(output, string(text))
+		}
 	}
 	err = json.NewEncoder(os.Stdout).Encode(output)
 	if err != nil {
