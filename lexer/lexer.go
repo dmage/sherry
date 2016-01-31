@@ -8,22 +8,39 @@ type Lexer struct {
 	consumed int
 }
 
-func (l *Lexer) consumeUntil(chars string, kind Kind) *Leaf {
-	rest := l.Input[l.consumed:]
-	i := bytes.IndexAny(rest, chars)
+func (l *Lexer) consumeLengthFunc(f func(c byte) bool) int {
+	buf := l.Input[l.consumed:]
+	i := 0
+	for i < len(buf) && f(buf[i]) {
+		i++
+	}
+	return i
+}
+
+func (l *Lexer) consumeFunc(f func(c byte) bool, kind Kind) *Leaf {
+	i := l.consumeLengthFunc(f)
 	if i == 0 {
 		return nil
 	}
-	if i == -1 {
-		i = len(rest)
-	}
 	leaf := &Leaf{
 		Kind: kind,
-		Data: rest[0:i],
+		Data: l.Input[l.consumed : l.consumed+i],
 		pos:  Pos(l.consumed),
 	}
 	l.consumed += i
 	return leaf
+}
+
+func (l *Lexer) consumeWhile(b []byte, kind Kind) *Leaf {
+	return l.consumeFunc(func(c byte) bool {
+		return bytes.IndexByte(b, c) != -1
+	}, kind)
+}
+
+func (l *Lexer) consumeUntil(b []byte, kind Kind) *Leaf {
+	return l.consumeFunc(func(c byte) bool {
+		return bytes.IndexByte(b, c) == -1
+	}, kind)
 }
 
 func (l *Lexer) consume(s string, kind Kind) *Leaf {
@@ -50,13 +67,19 @@ func (l *Lexer) Get() (Node, error) {
 	}
 
 	switch l.Input[l.consumed] {
+	case ' ', '\t':
+		leaf := l.consumeWhile([]byte(" \t"), Space)
+		if leaf == nil {
+			panic("unexpected nil")
+		}
+		return leaf, nil
 	case '>':
 		leaf := l.consume(">|", Operator)
 		if leaf != nil {
 			return leaf, nil
 		}
 		fallthrough
-	case '|', ' ':
+	case '|':
 		l.consumed++
 		return &Leaf{
 			Kind: Operator,
@@ -65,7 +88,7 @@ func (l *Lexer) Get() (Node, error) {
 		}, nil
 	}
 
-	leaf := l.consumeUntil("|> ", Word)
+	leaf := l.consumeUntil([]byte("|> "), Word)
 	if leaf != nil {
 		return leaf, nil
 	}

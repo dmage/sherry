@@ -4,9 +4,9 @@ package lexer
 
 import "fmt"
 
-const _Kind_name = "UnknownWordOperator"
+const _Kind_name = "UnknownWordOperatorSpace"
 
-var _Kind_index = [...]uint8{0, 7, 11, 19}
+var _Kind_index = [...]uint8{0, 7, 11, 19, 24}
 
 func (i Kind) String() string {
 	if i < 0 || i >= Kind(len(_Kind_index)-1) {

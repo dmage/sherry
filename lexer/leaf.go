@@ -12,6 +12,7 @@ const (
 	Unknown Kind = iota
 	Word
 	Operator
+	Space
 )
 
 // Leaf is a basic node type. Represents a piece of the input data.
