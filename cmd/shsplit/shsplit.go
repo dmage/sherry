@@ -10,8 +10,6 @@ import (
 	"github.com/dmage/sherry/lexer"
 )
 
-var kind = flag.Bool("kind", false, "prefix lexemes by the kind")
-
 func main() {
 	flag.Parse()
 
@@ -35,30 +33,18 @@ func main() {
 	l := lexer.Lexer{
 		Input: buf,
 	}
-	output := []string{}
+	nodes := []lexer.Node{}
 	for {
-		p, err := l.Get()
+		n, err := l.Get()
 		if err != nil {
 			log.Fatal(err)
 		}
-		if p == nil {
+		if n == nil {
 			break
 		}
-		text, err := p.MarshalText()
-		if err != nil {
-			log.Fatal(err)
-		}
-		if *kind {
-			if leaf, ok := p.(lexer.Leaf); ok {
-				output = append(output, leaf.Kind.String()+":"+string(text))
-			} else {
-				output = append(output, "!Leaf:"+string(text))
-			}
-		} else {
-			output = append(output, string(text))
-		}
+		nodes = append(nodes, n)
 	}
-	err = json.NewEncoder(os.Stdout).Encode(output)
+	err = json.NewEncoder(os.Stdout).Encode(nodes)
 	if err != nil {
 		log.Fatal(err)
 	}

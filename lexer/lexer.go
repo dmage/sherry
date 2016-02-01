@@ -75,19 +75,45 @@ func (l *Lexer) getVariable() Leaf {
 	return l.consume(i, Variable)
 }
 
-func (l *Lexer) getQQString() Leaf {
-	buf := l.Input[l.consumed:]
-	if len(buf) == 0 || buf[0] != '"' {
+func (l *Lexer) getQQStringNode() (Node, error) {
+	if l.consumed >= len(l.Input) {
+		return nil, nil
+	}
+
+	switch l.Input[l.consumed] {
+	case '"':
+		return nil, nil
+	case '$':
+		return l.getVariable(), nil
+	}
+	return l.consumeUntil([]byte("\"$"), Word), nil
+}
+
+func (l *Lexer) getQQString() (Node, error) {
+	lquote, ok := l.tryConsumeString("\"", Quote)
+	if !ok {
 		panic("expected \"")
 	}
-	i := 1
-	for i < len(buf) && buf[i] != '"' {
-		i++
+	var nodes []Node
+	for {
+		n, err := l.getQQStringNode()
+		if err != nil {
+			return nil, err
+		}
+		if n == nil {
+			break
+		}
+		nodes = append(nodes, n)
 	}
-	if i < len(buf) && buf[i] == '"' {
-		i++
+	rquote, ok := l.tryConsumeString("\"", Quote)
+	if !ok {
+		panic("expected \"")
 	}
-	return l.consume(i, Word)
+	return QQString{
+		Lquote: lquote,
+		Nodes:  nodes,
+		Rquote: rquote,
+	}, nil
 }
 
 // Get returns Node from unconsumed Input.
@@ -137,7 +163,7 @@ func (l *Lexer) Get() (Node, error) {
 	case '!', '(', ')', '{', '}':
 		return l.consume(1, Operator), nil
 	case '"':
-		return l.getQQString(), nil
+		return l.getQQString()
 	}
 
 	return l.consumeUntil([]byte(" \t#\n$;&|<>!(){}\""), Word), nil

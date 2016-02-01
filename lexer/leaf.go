@@ -1,5 +1,7 @@
 package lexer
 
+import "encoding/json"
+
 //go:generate stringer -type=Kind
 
 // Kind allows to distinguish between different types of leaves.
@@ -14,6 +16,7 @@ const (
 	NewLine
 	Comment
 	Variable
+	Quote
 )
 
 // Leaf is a basic node type. Represents a piece of the input data.
@@ -31,6 +34,18 @@ func (l Leaf) End() Pos {
 	return l.pos + Pos(len(l.Data))
 }
 
-func (l Leaf) MarshalText() (text []byte, err error) {
+func (l Leaf) MarshalText() ([]byte, error) {
 	return l.Data, nil
+}
+
+func (l Leaf) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type string
+		Kind string
+		Data string
+	}{
+		"Leaf",
+		l.Kind.String(),
+		string(l.Data),
+	})
 }

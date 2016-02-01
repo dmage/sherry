@@ -8,4 +8,5 @@ type Node interface {
 	Pos() Pos
 	End() Pos
 	MarshalText() (text []byte, err error)
+	MarshalJSON() (text []byte, err error)
 }
