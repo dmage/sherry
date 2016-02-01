@@ -49,7 +49,7 @@ func main() {
 			log.Fatal(err)
 		}
 		if *kind {
-			if leaf, ok := p.(*lexer.Leaf); ok {
+			if leaf, ok := p.(lexer.Leaf); ok {
 				output = append(output, leaf.Kind.String()+":"+string(text))
 			} else {
 				output = append(output, "!Leaf:"+string(text))

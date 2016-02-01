@@ -12,6 +12,8 @@ const (
 	Operator
 	Space
 	NewLine
+	Comment
+	Variable
 )
 
 // Leaf is a basic node type. Represents a piece of the input data.
