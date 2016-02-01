@@ -57,10 +57,10 @@ func isVariableName(c byte) bool {
 	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
 }
 
-func (l *Lexer) consumeVariable() Leaf {
+func (l *Lexer) getVariable() Leaf {
 	buf := l.Input[l.consumed:]
 	if len(buf) == 0 || buf[0] != '$' {
-		panic("consumeVariable expects $")
+		panic("expected $")
 	}
 	if len(buf) == 1 {
 		return l.consume(1, Variable)
@@ -73,6 +73,21 @@ func (l *Lexer) consumeVariable() Leaf {
 		i++
 	}
 	return l.consume(i, Variable)
+}
+
+func (l *Lexer) getQQString() Leaf {
+	buf := l.Input[l.consumed:]
+	if len(buf) == 0 || buf[0] != '"' {
+		panic("expected \"")
+	}
+	i := 1
+	for i < len(buf) && buf[i] != '"' {
+		i++
+	}
+	if i < len(buf) && buf[i] == '"' {
+		i++
+	}
+	return l.consume(i, Word)
 }
 
 // Get returns Node from unconsumed Input.
@@ -89,7 +104,7 @@ func (l *Lexer) Get() (Node, error) {
 	case '\n':
 		return l.consume(1, NewLine), nil
 	case '$':
-		return l.consumeVariable(), nil
+		return l.getVariable(), nil
 	case ';':
 		if leaf, ok := l.tryConsumeString(";;", Operator); ok {
 			return leaf, nil
@@ -121,7 +136,9 @@ func (l *Lexer) Get() (Node, error) {
 		return l.consume(1, Operator), nil
 	case '!', '(', ')', '{', '}':
 		return l.consume(1, Operator), nil
+	case '"':
+		return l.getQQString(), nil
 	}
 
-	return l.consumeUntil([]byte(" \t#\n$;&|<>!(){}"), Word), nil
+	return l.consumeUntil([]byte(" \t#\n$;&|<>!(){}\""), Word), nil
 }
