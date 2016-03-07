@@ -106,6 +106,9 @@ func (l *Lexer) getVariable() (Node, error) {
 	if buf[1] == '(' {
 		return l.getSubshellString()
 	}
+	if buf[1] == '{' {
+		panic("TODO: ${...} not implemented")
+	}
 	if !isVariableName(buf[1]) {
 		return l.consume(2, Variable), nil
 	}
