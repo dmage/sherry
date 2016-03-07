@@ -201,14 +201,18 @@ func (l *Lexer) Get() (Node, error) {
 			return l.getQQString()
 		}
 		return l.consumeUntil([]byte(specialSymbols), Word), nil
-	} else if l.state == CaseWaitIn {
+	}
+
+	if l.state == CaseWaitIn {
 		lexeme := l.consumeUntil([]byte(specialSymbols), Word)
 		if string(lexeme.Data) != "in" {
 			return nil, fmt.Errorf("expected \"in\", got %q", lexeme.Data)
 		}
 		l.state = CaseWaitPattern
 		return lexeme, nil
-	} else if l.state == CaseWaitPattern {
+	}
+
+	if l.state == CaseWaitPattern {
 		switch next {
 		case '(':
 			return l.consume(1, Operator), nil
