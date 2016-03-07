@@ -22,6 +22,10 @@ var lexerTests = []struct {
 		"echo \"$(date \"+%s\")\" >&2",
 		[]string{"echo", " ", "\"$(date \"+%s\")\"", " ", ">&", "2"},
 	},
+	{
+		"echo $(case $i in *) echo test; esac)",
+		[]string{"echo", " ", "$(case $i in *) echo test; esac)"},
+	},
 }
 
 func TestLexer(t *testing.T) {
