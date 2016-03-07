@@ -26,6 +26,14 @@ var lexerTests = []struct {
 		"echo $(case $i in *) echo test; esac)",
 		[]string{"echo", " ", "$(case $i in *) echo test; esac)"},
 	},
+	{
+		"case $a in foo) case $b in *) echo foo$b;; esac;; esac",
+		[]string{
+			"case", " ", "$a", " ", "in", " ", "foo", ")", " ", "case", " ",
+			"$b", " ", "in", " ", "*", ")", " ", "echo", " ", "foo", "$b",
+			";;", " ", "esac", ";;", " ", "esac",
+		},
+	},
 }
 
 func TestLexer(t *testing.T) {

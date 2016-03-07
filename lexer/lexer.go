@@ -220,7 +220,12 @@ func (l *Lexer) Get() (Node, error) {
 			l.state = Normal
 			return l.consume(1, Operator), nil
 		}
-		return l.consumeUntil([]byte(specialSymbols), Word), nil
+
+		lexeme := l.consumeUntil([]byte(specialSymbols), Word)
+		if string(lexeme.Data) == "esac" {
+			l.state = Normal
+		}
+		return lexeme, nil
 	}
 
 	switch next {
