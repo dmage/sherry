@@ -2,20 +2,20 @@ package lexer
 
 import "encoding/json"
 
-type QQString struct {
+type SubshellString struct {
 	Lquote, Rquote Leaf
 	Nodes          []Node
 }
 
-func (s QQString) Pos() Pos {
+func (s SubshellString) Pos() Pos {
 	return s.Lquote.Pos()
 }
 
-func (s QQString) End() Pos {
+func (s SubshellString) End() Pos {
 	return s.Rquote.End()
 }
 
-func (s QQString) MarshalText() ([]byte, error) {
+func (s SubshellString) MarshalText() ([]byte, error) {
 	var text []byte
 	t, err := s.Lquote.MarshalText()
 	if err != nil {
@@ -37,14 +37,14 @@ func (s QQString) MarshalText() ([]byte, error) {
 	return text, nil
 }
 
-func (s QQString) MarshalJSON() ([]byte, error) {
+func (s SubshellString) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type   string
 		Lquote Node
 		Nodes  []Node
 		Rquote Node
 	}{
-		"QQString",
+		"SubshellString",
 		s.Lquote,
 		s.Nodes,
 		s.Rquote,

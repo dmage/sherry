@@ -53,26 +53,67 @@ func (l *Lexer) consumeUntil(b []byte, kind Kind) Leaf {
 	}, kind)
 }
 
+func (l *Lexer) getSubshellStringNode() (Node, error) {
+	if l.consumed >= len(l.Input) {
+		return nil, nil
+	}
+
+	if l.Input[l.consumed] == ')' {
+		return nil, nil
+	}
+	return l.Get()
+}
+
+func (l *Lexer) getSubshellString() (Node, error) {
+	lquote, ok := l.tryConsumeString("$(", Quote)
+	if !ok {
+		panic("expected $(")
+	}
+	var nodes []Node
+	for {
+		n, err := l.getSubshellStringNode()
+		if err != nil {
+			return nil, err
+		}
+		if n == nil {
+			break
+		}
+		nodes = append(nodes, n)
+	}
+	rquote, ok := l.tryConsumeString(")", Quote)
+	if !ok {
+		panic("expected )")
+	}
+	return SubshellString{
+		Lquote: lquote,
+		Nodes:  nodes,
+		Rquote: rquote,
+	}, nil
+}
+
 func isVariableName(c byte) bool {
 	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
 }
 
-func (l *Lexer) getVariable() Leaf {
+func (l *Lexer) getVariable() (Node, error) {
 	buf := l.Input[l.consumed:]
 	if len(buf) == 0 || buf[0] != '$' {
 		panic("expected $")
 	}
 	if len(buf) == 1 {
-		return l.consume(1, Variable)
+		return l.consume(1, Variable), nil
+	}
+	if buf[1] == '(' {
+		return l.getSubshellString()
 	}
 	if !isVariableName(buf[1]) {
-		return l.consume(2, Variable)
+		return l.consume(2, Variable), nil
 	}
 	i := 1
 	for i < len(buf) && isVariableName(buf[i]) {
 		i++
 	}
-	return l.consume(i, Variable)
+	return l.consume(i, Variable), nil
 }
 
 func (l *Lexer) getQQStringNode() (Node, error) {
@@ -84,7 +125,7 @@ func (l *Lexer) getQQStringNode() (Node, error) {
 	case '"':
 		return nil, nil
 	case '$':
-		return l.getVariable(), nil
+		return l.getVariable()
 	}
 	return l.consumeUntil([]byte("\"$"), Word), nil
 }
@@ -130,7 +171,7 @@ func (l *Lexer) Get() (Node, error) {
 	case '\n':
 		return l.consume(1, NewLine), nil
 	case '$':
-		return l.getVariable(), nil
+		return l.getVariable()
 	case ';':
 		if leaf, ok := l.tryConsumeString(";;", Operator); ok {
 			return leaf, nil
