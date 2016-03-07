@@ -18,6 +18,10 @@ var lexerTests = []struct {
 		"echo test >|file",
 		[]string{"echo", " ", "test", " ", ">|", "file"},
 	},
+	{
+		"echo \"$(date \"+%s\")\" >&2",
+		[]string{"echo", " ", "\"$(date \"+%s\")\"", " ", ">&", "2"},
+	},
 }
 
 func TestLexer(t *testing.T) {
