@@ -1,11 +1,24 @@
 package lexer
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+)
+
+type State int
+
+const (
+	Normal State = iota
+	CaseWaitWord
+	CaseWaitIn
+	CaseWaitPattern
+)
 
 // Lexer is a splitter of the shell syntax.
 type Lexer struct {
 	Input    []byte
 	consumed int
+	state    State
 }
 
 func (l *Lexer) consume(size int, kind Kind) Leaf {
@@ -58,7 +71,7 @@ func (l *Lexer) getSubshellStringNode() (Node, error) {
 		return nil, nil
 	}
 
-	if l.Input[l.consumed] == ')' {
+	if l.state != CaseWaitPattern && l.Input[l.consumed] == ')' {
 		return nil, nil
 	}
 	return l.Get()
@@ -166,17 +179,52 @@ func (l *Lexer) Get() (Node, error) {
 		return nil, nil
 	}
 
-	switch l.Input[l.consumed] {
+	next := l.Input[l.consumed]
+
+	specialSymbols := " \t#\n$;&|<>!(){}\""
+
+	switch next {
 	case ' ', '\t':
 		return l.consumeWhile([]byte(" \t"), Space), nil
 	case '#':
 		return l.consumeUntil([]byte("\n"), Comment), nil
 	case '\n':
 		return l.consume(1, NewLine), nil
+	}
+
+	if l.state == CaseWaitWord {
+		l.state = CaseWaitIn
+		switch next {
+		case '$':
+			return l.getVariable()
+		case '"':
+			return l.getQQString()
+		}
+		return l.consumeUntil([]byte(specialSymbols), Word), nil
+	} else if l.state == CaseWaitIn {
+		lexeme := l.consumeUntil([]byte(specialSymbols), Word)
+		if string(lexeme.Data) != "in" {
+			return nil, fmt.Errorf("expected \"in\", got %q", lexeme.Data)
+		}
+		l.state = CaseWaitPattern
+		return lexeme, nil
+	} else if l.state == CaseWaitPattern {
+		switch next {
+		case '(':
+			return l.consume(1, Operator), nil
+		case ')':
+			l.state = Normal
+			return l.consume(1, Operator), nil
+		}
+		return l.consumeUntil([]byte(specialSymbols), Word), nil
+	}
+
+	switch next {
 	case '$':
 		return l.getVariable()
 	case ';':
 		if leaf, ok := l.tryConsumeString(";;", Operator); ok {
+			l.state = CaseWaitPattern
 			return leaf, nil
 		}
 		return l.consume(1, Operator), nil
@@ -210,5 +258,9 @@ func (l *Lexer) Get() (Node, error) {
 		return l.getQQString()
 	}
 
-	return l.consumeUntil([]byte(" \t#\n$;&|<>!(){}\""), Word), nil
+	lexeme := l.consumeUntil([]byte(specialSymbols), Word)
+	if string(lexeme.Data) == "case" {
+		l.state = CaseWaitWord
+	}
+	return lexeme, nil
 }
