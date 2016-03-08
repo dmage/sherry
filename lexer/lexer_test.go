@@ -34,6 +34,12 @@ var lexerTests = []struct {
 			";;", " ", "esac", ";;", " ", "esac",
 		},
 	},
+	{
+		"echo case foo bar",
+		[]string{
+			"echo", " ", "case", " ", "foo", " ", "bar",
+		},
+	},
 }
 
 func TestLexer(t *testing.T) {
