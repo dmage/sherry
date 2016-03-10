@@ -12,6 +12,7 @@ const (
 	CaseWaitWord
 	CaseWaitIn
 	CaseWaitPattern
+	Command
 )
 
 // Lexer is a splitter of the shell syntax.
@@ -82,10 +83,13 @@ func (l *Lexer) getSubshellString() (Node, error) {
 	if !ok {
 		panic("expected $(")
 	}
+	prevState := l.state
+	l.state = Normal
 	var nodes []Node
 	for {
 		n, err := l.getSubshellStringNode()
 		if err != nil {
+			l.state = prevState
 			return nil, err
 		}
 		if n == nil {
@@ -97,6 +101,7 @@ func (l *Lexer) getSubshellString() (Node, error) {
 	if !ok {
 		panic("expected )")
 	}
+	l.state = prevState
 	return SubshellString{
 		Lquote: lquote,
 		Nodes:  nodes,
@@ -189,6 +194,9 @@ func (l *Lexer) Get() (Node, error) {
 	case '#':
 		return l.consumeUntil([]byte("\n"), Comment), nil
 	case '\n':
+		if l.state == Command {
+			l.state = Normal
+		}
 		return l.consume(1, NewLine), nil
 	}
 
@@ -230,6 +238,7 @@ func (l *Lexer) Get() (Node, error) {
 
 	switch next {
 	case '$':
+		l.state = Command
 		return l.getVariable()
 	case ';':
 		if leaf, ok := l.tryConsumeString(";;", Operator); ok {
@@ -264,12 +273,17 @@ func (l *Lexer) Get() (Node, error) {
 	case '!', '(', ')', '{', '}':
 		return l.consume(1, Operator), nil
 	case '"':
+		l.state = Command
 		return l.getQQString()
 	}
 
 	lexeme := l.consumeUntil([]byte(specialSymbols), Word)
-	if string(lexeme.Data) == "case" {
-		l.state = CaseWaitWord
+	if l.state == Normal {
+		if string(lexeme.Data) == "case" {
+			l.state = CaseWaitWord
+		} else {
+			l.state = Command
+		}
 	}
 	return lexeme, nil
 }
