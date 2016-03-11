@@ -10,7 +10,7 @@ type Kind int
 // Leaf kinds.
 const (
 	Unknown Kind = iota
-	Word
+	Term
 	Operator
 	Space
 	NewLine

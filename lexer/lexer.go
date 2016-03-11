@@ -9,10 +9,14 @@ type State int
 
 const (
 	Normal State = iota
+	Command
 	CaseWaitWord
 	CaseWaitIn
 	CaseWaitPattern
-	Command
+)
+
+const (
+	specialSymbols = " \t#\n$;&|<>!(){}\""
 )
 
 // Lexer is a splitter of the shell syntax.
@@ -83,13 +87,17 @@ func (l *Lexer) getSubshellString() (Node, error) {
 	if !ok {
 		panic("expected $(")
 	}
+
 	prevState := l.state
 	l.state = Normal
+	defer func() {
+		l.state = prevState
+	}()
+
 	var nodes []Node
 	for {
 		n, err := l.getSubshellStringNode()
 		if err != nil {
-			l.state = prevState
 			return nil, err
 		}
 		if n == nil {
@@ -101,7 +109,7 @@ func (l *Lexer) getSubshellString() (Node, error) {
 	if !ok {
 		panic("expected )")
 	}
-	l.state = prevState
+
 	return SubshellString{
 		Lquote: lquote,
 		Nodes:  nodes,
@@ -148,7 +156,7 @@ func (l *Lexer) getQQStringNode() (Node, error) {
 	case '$':
 		return l.getVariable()
 	}
-	return l.consumeUntil([]byte("\"$"), Word), nil
+	return l.consumeUntil([]byte("\"$"), Term), nil
 }
 
 func (l *Lexer) getQQString() (Node, error) {
@@ -178,6 +186,43 @@ func (l *Lexer) getQQString() (Node, error) {
 	}, nil
 }
 
+func (l *Lexer) getWordNode() (Node, error) {
+	if l.consumed >= len(l.Input) {
+		return nil, nil
+	}
+
+	switch l.Input[l.consumed] {
+	case ' ', '\t', '#', '\n':
+		return nil, nil
+	case '$':
+		return l.getVariable()
+	case ';', '&', '|', '<', '>', '!', '(', ')':
+		return nil, nil
+	case '{', '}':
+		return l.consume(1, Term), nil
+	case '"':
+		return l.getQQString()
+	}
+	return l.consumeUntil([]byte(specialSymbols), Term), nil
+}
+
+func (l *Lexer) getWord() (Node, error) {
+	var nodes []Node
+	for {
+		n, err := l.getWordNode()
+		if err != nil {
+			return nil, err
+		}
+		if n == nil {
+			break
+		}
+		nodes = append(nodes, n)
+	}
+	return Word{
+		Nodes: nodes,
+	}, nil
+}
+
 // Get returns Node from unconsumed Input.
 func (l *Lexer) Get() (Node, error) {
 	if l.consumed >= len(l.Input) {
@@ -185,8 +230,6 @@ func (l *Lexer) Get() (Node, error) {
 	}
 
 	next := l.Input[l.consumed]
-
-	specialSymbols := " \t#\n$;&|<>!(){}\""
 
 	switch next {
 	case ' ', '\t':
@@ -201,18 +244,22 @@ func (l *Lexer) Get() (Node, error) {
 	}
 
 	if l.state == CaseWaitWord {
-		l.state = CaseWaitIn
-		switch next {
-		case '$':
-			return l.getVariable()
-		case '"':
-			return l.getQQString()
+		lexeme, err := l.getWord()
+		if err != nil {
+			return nil, err
 		}
-		return l.consumeUntil([]byte(specialSymbols), Word), nil
+
+		l.state = CaseWaitIn
+		return lexeme, nil
 	}
 
 	if l.state == CaseWaitIn {
-		lexeme := l.consumeUntil([]byte(specialSymbols), Word)
+		switch next {
+		case '$', ';', '&', '|', '<', '>', '!', '(', ')', '{', '}', '"':
+			return nil, fmt.Errorf("unexpected %c", next)
+		}
+
+		lexeme := l.consumeUntil([]byte(specialSymbols), Term)
 		if string(lexeme.Data) != "in" {
 			return nil, fmt.Errorf("expected \"in\", got %q", lexeme.Data)
 		}
@@ -222,14 +269,18 @@ func (l *Lexer) Get() (Node, error) {
 
 	if l.state == CaseWaitPattern {
 		switch next {
+		case '$', ';', '&', '|', '<', '>', '!':
+			return nil, fmt.Errorf("unexpected %c", next)
 		case '(':
 			return l.consume(1, Operator), nil
 		case ')':
 			l.state = Normal
 			return l.consume(1, Operator), nil
+		case '{', '}', '"':
+			return nil, fmt.Errorf("unexpected %c", next)
 		}
 
-		lexeme := l.consumeUntil([]byte(specialSymbols), Word)
+		lexeme := l.consumeUntil([]byte(specialSymbols), Term)
 		if string(lexeme.Data) == "esac" {
 			l.state = Normal
 		}
@@ -277,7 +328,7 @@ func (l *Lexer) Get() (Node, error) {
 		return l.getQQString()
 	}
 
-	lexeme := l.consumeUntil([]byte(specialSymbols), Word)
+	lexeme := l.consumeUntil([]byte(specialSymbols), Term)
 	if l.state == Normal {
 		if string(lexeme.Data) == "case" {
 			l.state = CaseWaitWord

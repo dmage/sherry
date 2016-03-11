@@ -53,6 +53,10 @@ var lexerTests = []struct {
 			`""`, " ", "case", " ", "foo", " ", "bar",
 		},
 	},
+	{
+		"case $foo\"bar baz\" in *) echo ok; esac",
+		[]string{"case", " ", "$foo\"bar baz\"", " ", "in", " ", "*", ")", " ", "echo", " ", "ok", ";", " ", "esac"},
+	},
 }
 
 func TestLexer(t *testing.T) {
@@ -64,7 +68,8 @@ func TestLexer(t *testing.T) {
 		for _, lexeme := range test.Output {
 			node, err := l.Get()
 			if err != nil {
-				t.Fatalf("%q: lexeme %q: %s", test.Input, lexeme, err)
+				t.Errorf("%q: lexeme %q: %s", test.Input, lexeme, err)
+				break
 			}
 
 			if p := node.Pos(); int(p) != pos {
@@ -79,6 +84,10 @@ func TestLexer(t *testing.T) {
 				t.Errorf("%q: lexeme %q: got %q, await %q", test.Input, lexeme, text, lexeme)
 			}
 			pos += len(text)
+		}
+
+		if pos != len(test.Input) {
+			t.Errorf("%q: unconsumed: %q", test.Input, test.Input[pos:])
 		}
 	}
 }
