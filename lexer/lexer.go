@@ -317,7 +317,20 @@ func (l *Lexer) Get() (Node, error) {
 		}
 	}
 
-	if next == '!' || next == '{' || next == '}' || next == '<' || next == '>' || next == '"' || next == '$' {
+	if next == '!' || next == '{' || next == '}' {
+		lexeme, err := l.getWord()
+		if err != nil {
+			return nil, err
+		}
+
+		if l.state == Normal && lexeme.End()-lexeme.Pos() != 1 {
+			l.state = Command
+		}
+
+		return lexeme, nil
+	}
+
+	if next == '<' || next == '>' || next == '"' || next == '$' {
 		l.state = Command
 		switch next {
 		case '!', '{', '}':

@@ -67,6 +67,23 @@ var lexerTests = []struct {
 		// TODO(dmage): ">&2" should be a single lexeme
 		[]string{">&", "2", " ", "case", " ", "foo", " ", "bar"},
 	},
+	{
+		"$(! case a in *) echo true; esac)",
+		[]string{"$(! case a in *) echo true; esac)"},
+	},
+	{
+		"$(!case a in *) echo true; esac)",
+		[]string{"$(!case a in *)", " ", "echo", " ", "true", ";", " ", "esac", ")"},
+	},
+	{
+		"{{ case foo bar }}",
+		// TODO(dmage): "case" is not a keyword here
+		[]string{"{{", " ", "case", " ", "foo", " ", "bar", " ", "}}"},
+	},
+	{
+		"$({ case a in *) echo true; esac; })",
+		[]string{"$({ case a in *) echo true; esac; })"},
+	},
 }
 
 func TestLexer(t *testing.T) {
