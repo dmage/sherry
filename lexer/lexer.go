@@ -339,7 +339,13 @@ func (l *Lexer) Get() (Node, error) {
 			return nil, err
 		}
 
-		if l.state == Normal && lexeme.End()-lexeme.Pos() != 1 {
+		if l.state == Normal {
+			if leaf, ok := lexeme.(Word).Leaf(Term); ok {
+				if len(leaf.Data) == 1 {
+					leaf.Kind = Operator
+					return leaf, nil
+				}
+			}
 			l.state = Command
 		}
 
@@ -377,18 +383,13 @@ func (l *Lexer) Get() (Node, error) {
 		return nil, err
 	}
 	if l.state == Normal {
-		word := lexeme.(Word)
-		if len(word.Nodes) == 1 {
-			if leaf, ok := word.Nodes[0].(Leaf); ok && leaf.Kind == Term {
+		if leaf, ok := lexeme.(Word).Leaf(Term); ok {
+			if _, ok := keywords[string(leaf.Data)]; ok {
+				leaf.Kind = Keyword
 				if string(leaf.Data) == "case" {
-					leaf.Kind = Keyword
 					l.state = CaseWaitWord
-					return leaf, nil
 				}
-				if _, ok := keywords[string(leaf.Data)]; ok {
-					leaf.Kind = Keyword
-					return leaf, nil
-				}
+				return leaf, nil
 			}
 		}
 		l.state = Command

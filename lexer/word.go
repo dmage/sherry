@@ -6,6 +6,16 @@ type Word struct {
 	Nodes []Node
 }
 
+func (s Word) Leaf(kind Kind) (Leaf, bool) {
+	if len(s.Nodes) != 1 {
+		return Leaf{}, false
+	}
+	if leaf, ok := s.Nodes[0].(Leaf); ok && leaf.Kind == kind {
+		return leaf, true
+	}
+	return Leaf{}, false
+}
+
 func (s Word) Pos() Pos {
 	return s.Nodes[0].Pos()
 }
