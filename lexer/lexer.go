@@ -349,8 +349,6 @@ func (l *Lexer) Get() (Node, error) {
 	if next == '<' || next == '>' || next == '"' || next == '$' {
 		l.state = Command
 		switch next {
-		case '!', '{', '}':
-			return l.consume(1, Operator), nil
 		case '<':
 			for _, op := range []string{"<<-", "<<", "<>", "<&"} {
 				if leaf, ok := l.tryConsumeString(op, Operator); ok {
