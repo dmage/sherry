@@ -16,7 +16,7 @@ const (
 )
 
 const (
-	specialSymbols = " \t#\n;&|<>!(){}\"$"
+	specialSymbols = " \t#\n;&|()<>!{}\"$"
 )
 
 // Lexer is a splitter of the shell syntax.
@@ -192,15 +192,9 @@ func (l *Lexer) getWordNode() (Node, error) {
 	}
 
 	switch l.Input[l.consumed] {
-	case ' ', '\t', '#', '\n':
+	case ' ', '\t', '#', '\n', ';', '&', '|', '(', ')', '<', '>':
 		return nil, nil
-	case ';', '&', '|', '<', '>':
-		return nil, nil
-	case '!':
-		return l.consume(1, Term), nil
-	case '(', ')':
-		return nil, nil
-	case '{', '}':
+	case '!', '{', '}':
 		return l.consume(1, Term), nil
 	case '"':
 		return l.getQQString()
@@ -259,7 +253,7 @@ func (l *Lexer) Get() (Node, error) {
 
 	if l.state == CaseWaitIn {
 		switch next {
-		case ';', '&', '|', '<', '>', '!', '(', ')', '{', '}', '"', '$':
+		case ';', '&', '|', '(', ')', '<', '>', '!', '{', '}', '"', '$':
 			return nil, fmt.Errorf("unexpected %c", next)
 		}
 
@@ -273,14 +267,14 @@ func (l *Lexer) Get() (Node, error) {
 
 	if l.state == CaseWaitPattern {
 		switch next {
-		case ';', '&', '|', '<', '>', '!':
+		case ';', '&', '|':
 			return nil, fmt.Errorf("unexpected %c", next)
 		case '(':
 			return l.consume(1, Operator), nil
 		case ')':
 			l.state = Normal
 			return l.consume(1, Operator), nil
-		case '{', '}', '"', '$':
+		case '<', '>', '!', '{', '}', '"', '$':
 			return nil, fmt.Errorf("unexpected %c", next)
 		}
 
@@ -289,6 +283,10 @@ func (l *Lexer) Get() (Node, error) {
 			l.state = Normal
 		}
 		return lexeme, nil
+	}
+
+	if l.state != Normal && l.state != Command {
+		panic("unexpected state")
 	}
 
 	switch next {
@@ -308,6 +306,8 @@ func (l *Lexer) Get() (Node, error) {
 			return leaf, nil
 		}
 		return l.consume(1, Operator), nil
+	case '(', ')':
+		return l.consume(1, Operator), nil
 	case '<':
 		for _, op := range []string{"<<-", "<<", "<>", "<&"} {
 			if leaf, ok := l.tryConsumeString(op, Operator); ok {
@@ -322,7 +322,7 @@ func (l *Lexer) Get() (Node, error) {
 			}
 		}
 		return l.consume(1, Operator), nil
-	case '!', '(', ')', '{', '}':
+	case '!', '{', '}':
 		return l.consume(1, Operator), nil
 	case '"':
 		l.state = Command
