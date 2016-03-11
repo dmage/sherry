@@ -215,7 +215,10 @@ func (l *Lexer) getWordNode() (Node, error) {
 	case '<', '>':
 		return nil, nil
 	case '\\':
-		panic("not implemented") // FIXME
+		if l.consumed+1 >= len(l.Input) {
+			return l.consume(1, Escaped), nil
+		}
+		return l.consume(2, Escaped), nil
 	case '"':
 		return l.getQQString()
 	case '$':
@@ -353,7 +356,7 @@ func (l *Lexer) Get() (Node, error) {
 		return lexeme, nil
 	}
 
-	if next == '<' || next == '>' || next == '\\' || next == '"' || next == '$' {
+	if next == '<' || next == '>' {
 		l.state = Command
 		switch next {
 		case '<':
@@ -370,12 +373,6 @@ func (l *Lexer) Get() (Node, error) {
 				}
 			}
 			return l.consume(1, Operator), nil
-		case '\\':
-			panic("not implemented") // FIXME
-		case '"':
-			return l.getQQString()
-		case '$':
-			return l.getVariable()
 		default:
 			panic("unexpected case")
 		}
