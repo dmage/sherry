@@ -88,6 +88,10 @@ var lexerTests = []struct {
 		"echo foo\"b a r\"$baz",
 		[]string{"echo", " ", "foo\"b a r\"$baz"},
 	},
+	{
+		"echo \"f o o\\\"b a r\"",
+		[]string{"echo", " ", "\"f o o\\\"b a r\""},
+	},
 }
 
 func TestLexer(t *testing.T) {

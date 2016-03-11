@@ -167,12 +167,17 @@ func (l *Lexer) getQQStringNode() (Node, error) {
 	}
 
 	switch l.Input[l.consumed] {
+	case '\\':
+		if l.consumed+1 >= len(l.Input) {
+			return l.consume(1, Escaped), nil
+		}
+		return l.consume(2, Escaped), nil
 	case '"':
 		return nil, nil
 	case '$':
 		return l.getVariable()
 	}
-	return l.consumeUntil([]byte("\"$"), Term), nil
+	return l.consumeUntil([]byte("\\\"$"), Term), nil
 }
 
 func (l *Lexer) getQQString() (Node, error) {
