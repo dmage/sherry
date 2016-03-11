@@ -16,7 +16,7 @@ const (
 )
 
 const (
-	specialSymbols = " \t#\n;&|()!{}<>\"$"
+	specialSymbols = " \t#\n;&|()!{}<>\\\"$"
 )
 
 var keywords = map[string]struct{}{
@@ -149,7 +149,7 @@ func (l *Lexer) getVariable() (Node, error) {
 		return l.getSubshellString()
 	}
 	if buf[1] == '{' {
-		panic("TODO: ${...} not implemented")
+		panic("TODO: ${...} not implemented") // FIXME
 	}
 	if !isVariableName(buf[1]) {
 		return l.consume(2, Variable), nil
@@ -214,6 +214,8 @@ func (l *Lexer) getWordNode() (Node, error) {
 		return l.consume(1, Term), nil
 	case '<', '>':
 		return nil, nil
+	case '\\':
+		panic("not implemented") // FIXME
 	case '"':
 		return l.getQQString()
 	case '$':
@@ -271,7 +273,7 @@ func (l *Lexer) Get() (Node, error) {
 
 	if l.state == CaseWaitIn {
 		switch next {
-		case ';', '&', '|', '(', ')', '!', '{', '}', '<', '>', '"', '$':
+		case ';', '&', '|', '(', ')', '!', '{', '}', '<', '>', '\\', '"', '$':
 			return nil, fmt.Errorf("unexpected %c", next)
 		}
 
@@ -292,7 +294,7 @@ func (l *Lexer) Get() (Node, error) {
 		case ')':
 			l.state = Normal
 			return l.consume(1, Operator), nil
-		case '!', '{', '}', '<', '>', '"', '$':
+		case '!', '{', '}', '<', '>', '\\', '"', '$':
 			return nil, fmt.Errorf("unexpected %c", next)
 		}
 
@@ -351,7 +353,7 @@ func (l *Lexer) Get() (Node, error) {
 		return lexeme, nil
 	}
 
-	if next == '<' || next == '>' || next == '"' || next == '$' {
+	if next == '<' || next == '>' || next == '\\' || next == '"' || next == '$' {
 		l.state = Command
 		switch next {
 		case '<':
@@ -368,6 +370,8 @@ func (l *Lexer) Get() (Node, error) {
 				}
 			}
 			return l.consume(1, Operator), nil
+		case '\\':
+			panic("not implemented") // FIXME
 		case '"':
 			return l.getQQString()
 		case '$':
