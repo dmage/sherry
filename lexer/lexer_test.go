@@ -30,8 +30,8 @@ var lexerTests = []struct {
 		"case $a in foo) case $b in *) echo foo$b;; esac;; esac",
 		[]string{
 			"case", " ", "$a", " ", "in", " ", "foo", ")", " ", "case", " ",
-			"$b", " ", "in", " ", "*", ")", " ", "echo", " ", "foo", "$b",
-			";;", " ", "esac", ";;", " ", "esac",
+			"$b", " ", "in", " ", "*", ")", " ", "echo", " ", "foo$b", ";;",
+			" ", "esac", ";;", " ", "esac",
 		},
 	},
 	{
@@ -84,6 +84,10 @@ var lexerTests = []struct {
 		"$({ case a in *) echo true; esac; })",
 		[]string{"$({ case a in *) echo true; esac; })"},
 	},
+	{
+		"echo foo\"b a r\"$baz",
+		[]string{"echo", " ", "foo\"b a r\"$baz"},
+	},
 }
 
 func TestLexer(t *testing.T) {
@@ -96,6 +100,10 @@ func TestLexer(t *testing.T) {
 			node, err := l.Get()
 			if err != nil {
 				t.Errorf("%q: lexeme %q: %s", test.Input, lexeme, err)
+				break
+			}
+			if node == nil {
+				t.Errorf("%q: got EOF, await %q", test.Input, lexeme)
 				break
 			}
 

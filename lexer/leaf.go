@@ -17,6 +17,7 @@ const (
 	Comment
 	Variable
 	Quote
+	Keyword
 )
 
 // Leaf is a basic node type. Represents a piece of the input data.

@@ -4,9 +4,9 @@ package lexer
 
 import "fmt"
 
-const _Kind_name = "UnknownTermOperatorSpaceNewLineCommentVariableQuote"
+const _Kind_name = "UnknownTermOperatorSpaceNewLineCommentVariableQuoteKeyword"
 
-var _Kind_index = [...]uint8{0, 7, 11, 19, 24, 31, 38, 46, 51}
+var _Kind_index = [...]uint8{0, 7, 11, 19, 24, 31, 38, 46, 51, 58}
 
 func (i Kind) String() string {
 	if i < 0 || i >= Kind(len(_Kind_index)-1) {

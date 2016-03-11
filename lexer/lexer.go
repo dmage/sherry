@@ -19,6 +19,22 @@ const (
 	specialSymbols = " \t#\n;&|()!{}<>\"$"
 )
 
+var keywords = map[string]struct{}{
+	"case":  struct{}{},
+	"do":    struct{}{},
+	"done":  struct{}{},
+	"elif":  struct{}{},
+	"else":  struct{}{},
+	"esac":  struct{}{},
+	"fi":    struct{}{},
+	"for":   struct{}{},
+	"if":    struct{}{},
+	"in":    struct{}{},
+	"then":  struct{}{},
+	"until": struct{}{},
+	"while": struct{}{},
+}
+
 // Lexer is a splitter of the shell syntax.
 type Lexer struct {
 	Input    []byte
@@ -259,7 +275,7 @@ func (l *Lexer) Get() (Node, error) {
 			return nil, fmt.Errorf("unexpected %c", next)
 		}
 
-		lexeme := l.consumeUntil([]byte(specialSymbols), Term)
+		lexeme := l.consumeUntil([]byte(specialSymbols), Keyword)
 		if string(lexeme.Data) != "in" {
 			return nil, fmt.Errorf("expected \"in\", got %q", lexeme.Data)
 		}
@@ -358,14 +374,26 @@ func (l *Lexer) Get() (Node, error) {
 		}
 	}
 
-	lexeme := l.consumeUntil([]byte(specialSymbols), Term)
-	// FIXME(dmage): ugly and wrong
+	lexeme, err := l.getWord()
+	if err != nil {
+		return nil, err
+	}
 	if l.state == Normal {
-		if string(lexeme.Data) == "case" {
-			l.state = CaseWaitWord
-		} else {
-			l.state = Command
+		word := lexeme.(Word)
+		if len(word.Nodes) == 1 {
+			if leaf, ok := word.Nodes[0].(Leaf); ok && leaf.Kind == Term {
+				if string(leaf.Data) == "case" {
+					leaf.Kind = Keyword
+					l.state = CaseWaitWord
+					return leaf, nil
+				}
+				if _, ok := keywords[string(leaf.Data)]; ok {
+					leaf.Kind = Keyword
+					return leaf, nil
+				}
+			}
 		}
+		l.state = Command
 	}
 	return lexeme, nil
 }
