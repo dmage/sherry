@@ -196,7 +196,11 @@ func (l *Lexer) getWordNode() (Node, error) {
 		return nil, nil
 	case '$':
 		return l.getVariable()
-	case ';', '&', '|', '<', '>', '!', '(', ')':
+	case ';', '&', '|', '<', '>':
+		return nil, nil
+	case '!':
+		return l.consume(1, Term), nil
+	case '(', ')':
 		return nil, nil
 	case '{', '}':
 		return l.consume(1, Term), nil
