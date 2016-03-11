@@ -289,50 +289,62 @@ func (l *Lexer) Get() (Node, error) {
 		panic("unexpected state")
 	}
 
-	switch next {
-	case ';':
-		if leaf, ok := l.tryConsumeString(";;", Operator); ok {
-			l.state = CaseWaitPattern
-			return leaf, nil
-		}
-		return l.consume(1, Operator), nil
-	case '&':
-		if leaf, ok := l.tryConsumeString("&&", Operator); ok {
-			return leaf, nil
-		}
-		return l.consume(1, Operator), nil
-	case '|':
-		if leaf, ok := l.tryConsumeString("||", Operator); ok {
-			return leaf, nil
-		}
-		return l.consume(1, Operator), nil
-	case '(', ')':
-		return l.consume(1, Operator), nil
-	case '<':
-		for _, op := range []string{"<<-", "<<", "<>", "<&"} {
-			if leaf, ok := l.tryConsumeString(op, Operator); ok {
+	if next == ';' || next == '&' || next == '|' || next == '(' || next == ')' {
+		l.state = Normal
+		switch next {
+		case ';':
+			if leaf, ok := l.tryConsumeString(";;", Operator); ok {
+				l.state = CaseWaitPattern
 				return leaf, nil
 			}
-		}
-		return l.consume(1, Operator), nil
-	case '>':
-		for _, op := range []string{">>", ">&", ">|"} {
-			if leaf, ok := l.tryConsumeString(op, Operator); ok {
+			return l.consume(1, Operator), nil
+		case '&':
+			if leaf, ok := l.tryConsumeString("&&", Operator); ok {
 				return leaf, nil
 			}
+			return l.consume(1, Operator), nil
+		case '|':
+			if leaf, ok := l.tryConsumeString("||", Operator); ok {
+				return leaf, nil
+			}
+			return l.consume(1, Operator), nil
+		case '(', ')':
+			return l.consume(1, Operator), nil
+		default:
+			panic("unexpected case")
 		}
-		return l.consume(1, Operator), nil
-	case '!', '{', '}':
-		return l.consume(1, Operator), nil
-	case '"':
+	}
+
+	if next == '<' || next == '>' || next == '!' || next == '{' || next == '}' || next == '"' || next == '$' {
 		l.state = Command
-		return l.getQQString()
-	case '$':
-		l.state = Command
-		return l.getVariable()
+		switch next {
+		case '<':
+			for _, op := range []string{"<<-", "<<", "<>", "<&"} {
+				if leaf, ok := l.tryConsumeString(op, Operator); ok {
+					return leaf, nil
+				}
+			}
+			return l.consume(1, Operator), nil
+		case '>':
+			for _, op := range []string{">>", ">&", ">|"} {
+				if leaf, ok := l.tryConsumeString(op, Operator); ok {
+					return leaf, nil
+				}
+			}
+			return l.consume(1, Operator), nil
+		case '!', '{', '}':
+			return l.consume(1, Operator), nil
+		case '"':
+			return l.getQQString()
+		case '$':
+			return l.getVariable()
+		default:
+			panic("unexpected case")
+		}
 	}
 
 	lexeme := l.consumeUntil([]byte(specialSymbols), Term)
+	// FIXME(dmage): ugly and wrong
 	if l.state == Normal {
 		if string(lexeme.Data) == "case" {
 			l.state = CaseWaitWord
