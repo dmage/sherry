@@ -298,6 +298,7 @@ func (l *Lexer) Get() (Node, error) {
 
 		lexeme := l.consumeUntil([]byte(specialSymbols), Term)
 		if string(lexeme.Data) == "esac" {
+			lexeme.Kind = Keyword
 			l.state = Normal
 		}
 		return lexeme, nil
@@ -338,7 +339,6 @@ func (l *Lexer) Get() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		if l.state == Normal {
 			if leaf, ok := lexeme.(Word).Leaf(Term); ok {
 				if len(leaf.Data) == 1 {
@@ -348,7 +348,6 @@ func (l *Lexer) Get() (Node, error) {
 			}
 			l.state = Command
 		}
-
 		return lexeme, nil
 	}
 
