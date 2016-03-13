@@ -98,6 +98,140 @@ func (l *Lexer) getSubshellStringNode() (Node, error) {
 	return l.Get()
 }
 
+func isNumber(c byte) bool {
+	return '0' <= c && c <= '9'
+}
+
+func (l *Lexer) getArithmeticNode() (Node, error) {
+	if l.consumed >= len(l.Input) {
+		return nil, nil
+	}
+
+	switch l.Input[l.consumed] {
+	case ' ', '\t':
+		return l.consumeWhile([]byte(" \t"), Space), nil
+	case '#', ';', '{', '}', '"':
+		return nil, fmt.Errorf("unexpected %c", l.Input[l.consumed])
+	case '\n':
+		return l.consume(1, NewLine), nil
+	case '\\':
+		if l.consumed+1 >= len(l.Input) {
+			return l.consume(1, Escaped), nil
+		}
+		return l.consume(2, Escaped), nil
+	case '+', '-', '*', '&', '|', '<', '>':
+		if l.consumed+1 < len(l.Input) {
+			if l.consumed+2 < len(l.Input) {
+				// <<=
+				if l.Input[l.consumed+2] == '=' && l.Input[l.consumed] == '<' && l.Input[l.consumed+1] == '<' {
+					return l.consume(3, Term), nil
+				}
+				// >>=
+				if l.Input[l.consumed+2] == '=' && l.Input[l.consumed] == '>' && l.Input[l.consumed+1] == '>' {
+					return l.consume(3, Term), nil
+				}
+			}
+			 // += -= *= &= |= <= >=
+			if l.Input[l.consumed+1] == '=' {
+				return l.consume(2, Term), nil
+			}
+			 // ++ -- ** && || << >>
+			if l.Input[l.consumed+1] == l.Input[l.consumed] {
+				return l.consume(2, Term), nil
+			}
+		}
+		 // + - * & | < >
+		return l.consume(1, Term), nil
+	case '!', '=', '/', '%', '^':
+		if l.consumed+1 < len(l.Input) {
+			 // != == /= %= ^=
+			if l.Input[l.consumed+1] == '=' {
+				return l.consume(2, Term), nil
+			}
+		}
+		// ! = / % ^
+		return l.consume(1, Term), nil
+	case '~', ',':
+		return l.consume(1, Term), nil
+	case '(':
+		return l.getArithmetic()
+	case ')':
+		return nil, nil
+	case '$':
+		return l.getVariable()
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		i := l.consumed
+		minlen := 1
+
+		if l.Input[l.consumed] == '0' {
+			if l.consumed+2 < len(l.Input) && l.Input[l.consumed+1] == 'x' || l.Input[l.consumed+1] == 'X' {
+				minlen = 3
+				i += 2
+			} else {
+				minlen = 2
+				i += 1
+			}
+		}
+
+		for i < len(l.Input) && isNumber(l.Input[i]) {
+			i++
+		}
+
+		if (i-l.consumed) < minlen {
+			return nil, fmt.Errorf("bad number")
+		}
+
+		return l.consume(i-l.consumed, Variable), nil
+	}
+
+	// Variables without $
+	i := l.consumed
+	for i < len(l.Input) && isVariableName(l.Input[i]) {
+		i++
+	}
+	if i > l.consumed {
+		return l.consume(i-l.consumed, Variable), nil
+	}
+
+	return nil, fmt.Errorf("unexpected %c", l.Input[l.consumed])
+}
+
+// TODO(legion): expr?expr:expr
+// TODO(legion): numbers take the form [base#]n
+func (l *Lexer) getArithmetic() (Node, error) {
+	var nodes []Node
+
+	lbrace, ok := l.tryConsumeString("(", Quote)
+	if !ok {
+		panic("expected (")
+	}
+
+	for {
+		n, err := l.getArithmeticNode()
+
+		if err != nil {
+			return nil, err
+		}
+
+		if n == nil {
+			break
+		}
+
+		nodes = append(nodes, n)
+	}
+
+	rbrace, ok := l.tryConsumeString(")", Quote)
+	if !ok {
+		panic("expected )")
+	}
+
+	return MathGroup{
+		Lbrace: lbrace,
+		Rbrace: rbrace,
+		Nodes:  nodes,
+	}, nil
+}
+
 func (l *Lexer) getSubshellString() (Node, error) {
 	lquote, ok := l.tryConsumeString("$(", Quote)
 	if !ok {
@@ -105,10 +239,24 @@ func (l *Lexer) getSubshellString() (Node, error) {
 	}
 
 	prevState := l.state
-	l.state = Normal
 	defer func() {
 		l.state = prevState
 	}()
+
+	if l.Input[l.consumed] == '(' {
+		nodes, err := l.getArithmetic()
+		if err != nil {
+			return nil, err
+		}
+
+		if _, ok := l.tryConsumeString(")", Quote); !ok {
+			panic("expected )")
+		}
+
+		return nodes, nil
+	}
+
+	l.state = Normal
 
 	var nodes []Node
 	for {
